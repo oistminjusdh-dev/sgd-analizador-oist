@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="es" data-theme="light">
+<head>
+    <meta charset="utf-8">
+    <title>Dashboard OIST</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='estilos.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<div class="container contenedor-principal">
+    <div class="header">
+        <div class="header-left">
+            <img src="{{ url_for('static', filename='logo_minjusdh.png') }}" class="logo-minjus" alt="logo">
+            <div class="header-title">
+                <h1>Reporte de Documentos – {{ date_range }}</h1>
+                <p>{{ office_name }}</p>
+            </div>
+        </div>
+        <div>
+            <a href="{{ url_for('index') }}" class="boton-volver">⬅ Volver</a>
+        </div>
+    </div>
+
+    <div class="dashboard-card">
+        <h2>Documentos pendientes: {{ office_name }}</h2>
+        <p>
+            Por recibir: <strong style="color:#c1121f;">{{ resumen_global.por_recibir }}</strong> —
+            Pendiente: <strong style="color:#198754;">{{ resumen_global.pendiente }}</strong> —
+            Total: <strong>{{ resumen_global.total }}</strong> —
+            Máx días: <strong>{{ resumen_global.max_dias }}</strong>
+        </p>
+    </div>
+
+    <div class="chart-card">
+        <h2>📊 Documentos por persona</h2>
+        <canvas id="chartPersonal" height="120"></canvas>
+    </div>
+
+    <div class="tarjetas-personal">
+        {% for persona in personas %}
+        <div class="tarjeta persona-card">
+            <h3>{{ persona.nombre }}</h3>
+            <p>
+                <span class="estado-por-recibir">Por recibir: {{ persona.por_recibir }}</span> —
+                <span class="estado-pendiente">Pendiente: {{ persona.pendiente }}</span> —
+                Total: <strong>{{ persona.total }}</strong> —
+                Máx Días: <strong class="dias-rojo">{{ persona.max_dias }}</strong>
+            </p>
+
+            <div class="seccion-titulo">📌 Documento con mayor tiempo</div>
+            <p class="editable" data-original="{{ persona.doc_max.asunto }}" ondblclick="editarAsunto(this)">{{ persona.doc_max.asunto }}</p>
+            <small>{{ persona.doc_max.fecha }} — Código: {{ persona.doc_max.codigo }} — {{ persona.doc_max.dias }} días</small>
+
+            <div class="seccion-titulo">📅 Total por fecha</div>
+            <ul class="lista-fechas">
+                {% for tf in persona.totales_fecha %}
+                    <li>{{ tf.cantidad }} documento(s) del {{ tf.fecha }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="dashboard-card">
+        <h2>📋 Tabla detallada</h2>
+        <table class="tabla tabla-detallada">
+            <thead>
+                <tr>
+                    <th>Personal</th><th>Código</th><th>Estado</th><th>Fecha</th><th>Días</th><th>Asunto</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for fila in tabla_detallada %}
+                <tr>
+                    <td class="editable" ondblclick="editarNombre(this)" data-original="{{ fila.Nombre_Personal }}">{{ fila.Nombre_Personal }}</td>
+                    <td>{{ fila.Codigo }}</td>
+                    <td>{{ fila.Estado }}</td>
+                    <td>{{ fila.Fecha_Recepcion_Str }}</td>
+                    <td>{{ fila.Dias_En_Bandeja }}</td>
+                    <td class="editable" ondblclick="editarAsunto(this)" data-original="{{ fila.Asunto }}">{{ fila.Asunto }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <p class="muted">Total documentos en reporte: <strong>{{ resumen_global.total }}</strong></p>
+    </div>
+</div>
+
+<script>
+const nombres = {{ grafico.nombres | tojson }};
+const pendientes = {{ grafico.pendientes | tojson }};
+const por_recibir = {{ grafico.por_recibir | tojson }};
+
+const ctx = document.getElementById('chartPersonal').getContext('2d');
+new Chart(ctx, {
+    type: 'bar',
+    data: {
+        labels: nombres,
+        datasets: [
+            { label: 'Pendiente', data: pendientes, backgroundColor: '#198754' },
+            { label: 'Por recibir', data: por_recibir, backgroundColor: '#c1121f' }
+        ]
+    },
+    options: {
+        responsive: true,
+        scales: { y: { beginAtZero: true } }
+    }
+});
+
+// Inline editing handlers
+function editarNombre(el){
+    const orig = el.dataset.original || el.innerText;
+    const nuevo = prompt("Editar nombre (original: " + orig + ")", orig);
+    if(nuevo && nuevo.trim() !== orig.trim()){
+        fetch("/corregir_nombre", {
+            method: "POST",
+            headers: { "Content-Type":"application/json" },
+            body: JSON.stringify({ original: orig, corregido: nuevo })
+        }).then(r=>r.json()).then(j=>{
+            if(!j.error){ el.innerText = nuevo; el.dataset.original = nuevo; alert("Nombre registrado para aprendizaje."); }
+        }).catch(e=>console.error(e));
+    }
+}
+
+function editarAsunto(el){
+    const orig = el.dataset.original || el.innerText;
+    const nuevo = prompt("Editar asunto (original: " + orig + ")", orig);
+    if(nuevo && nuevo.trim() !== orig.trim()){
+        fetch("/corregir_asunto", {
+            method: "POST",
+            headers: { "Content-Type":"application/json" },
+            body: JSON.stringify({ original: orig, corregido: nuevo })
+        }).then(r=>r.json()).then(j=>{
+            if(!j.error){ el.innerText = nuevo; el.dataset.original = nuevo; alert("Asunto registrado para aprendizaje."); }
+        }).catch(e=>console.error(e));
+    }
+}
+</script>
+
+</body>
+</html>

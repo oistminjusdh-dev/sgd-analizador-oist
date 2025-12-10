@@ -1,0 +1,9 @@
+# requirements.txt
+Flask
+pandas
+openpyxl
+gunicorn
+pdfplumber
+pytesseract
+Pillow
+pdf2image
